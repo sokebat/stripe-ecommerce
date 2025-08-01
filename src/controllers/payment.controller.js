@@ -8,8 +8,7 @@ export const createPayment = async (req, res) => {
         ? authHeader.substring(7)
         : null;
 
-    console.log("Token:", token);
-
+    
     const { userId, formatedCartItems, email, name } = req.body;
 
     if (!userId) {
@@ -50,8 +49,8 @@ export const createPayment = async (req, res) => {
     const result = await stripeService.createCheckoutSession(
       orderData,
       userId,
-      `${process.env.FRONTEND_URL}/payment/success `, // successUrl
-      `${process.env.FRONTEND_URL}/payment/cancel ` // cancelUrl
+      `${process.env.FRONTEND_URL?.replace(/\/$/, '')}/payment/success`,
+      `${process.env.FRONTEND_URL?.replace(/\/$/, '')}/payment/cancel`
     );
 
    
@@ -62,7 +61,6 @@ export const createPayment = async (req, res) => {
       orderId: `order_${email}_${userId}`,
       totalAmount: totalAmount,
       orders: formatedCartItems,
-      orderRecord: orderRecord,
     });
   } catch (error) {
     console.error("Payment creation error:", error);

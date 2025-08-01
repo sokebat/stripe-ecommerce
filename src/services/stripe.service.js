@@ -10,8 +10,7 @@ class StripeService {
     try {
       const { id, items, email, name, amount } = orderData;
 
-      console.log("stripe service");
-      // Format line items for Stripe
+    
       const lineItems = items.map((item) => ({
         price_data: {
           currency: "usd",
@@ -26,14 +25,10 @@ class StripeService {
 
       // Create a checkout session
       const session = await this.stripe.checkout.sessions.create({
-        line_items: lineItems,
         mode: "payment",
-        success_url:
-          successUrl ||
-          `${process.env.FRONTEND_URL}/payment/success `,
-        cancel_url:
-          cancelUrl ||
-          `${process.env.FRONTEND_URL}/payment/cancel `,
+        line_items: lineItems,
+        success_url: successUrl,
+        cancel_url: cancelUrl,
         client_reference_id: id,
         customer_email: email,
 
