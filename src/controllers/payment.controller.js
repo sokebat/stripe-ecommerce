@@ -49,8 +49,8 @@ export const createPayment = async (req, res) => {
     const result = await stripeService.createCheckoutSession(
       orderData,
       userId,
-      `${process.env.FRONTEND_URL?.replace(/\/$/, '')}/payment/success`,
-      `${process.env.FRONTEND_URL?.replace(/\/$/, '')}/payment/cancel`
+      `${process.env.FRONTEND_URL?.replace(/\/$/, '')}/success`,
+      `${process.env.FRONTEND_URL?.replace(/\/$/, '')}/cancel`
     );
 
    
