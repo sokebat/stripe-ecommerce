@@ -31,6 +31,7 @@ class StripeService {
       }));
 
       const itemsJson = JSON.stringify(items);
+      const addressJson = JSON.stringify(address);
 
       // Create a checkout session
       const session = await this.stripe.checkout.sessions.create({
@@ -48,7 +49,7 @@ class StripeService {
           name: customerName,
           items: items.map((item) => item.name || "Unknown").join(", "),
           itemsJson: itemsJson, // Use validated JSON
-          address: address,
+          address: addressJson,
           timestamp: new Date().toISOString(),
         },
       });
