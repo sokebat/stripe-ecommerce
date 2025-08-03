@@ -128,8 +128,7 @@ export const webhook = async (req, res) => {
         
         const result = await orderService.createOrderWithPayment(
           session.metadata.userId,
-          session.customer_details.email,
-          session.customer_details.name,
+      
           parsedAddress,
           parsedItems,
           session.amount_total / 100,

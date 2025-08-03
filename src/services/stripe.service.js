@@ -51,12 +51,8 @@ class StripeService {
         metadata: {
           userId: userId,
           amount: amount.toString(),
-          email: customerEmail,
-          name: customerName,
-
-          itemsJson: itemsJson, // Use validated JSON
+          itemsJson: itemsJson,  
           address: addressJson,
-
           cartid: cartid,
         },
       });

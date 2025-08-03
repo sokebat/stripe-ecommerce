@@ -2,7 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 
 /**
  * OrderService - Handles order creation with robust idempotency
- * 
+ *
  * Features:
  * - Prevents duplicate orders from webhook retries
  * - Handles PostgreSQL unique constraint violations
@@ -23,24 +23,25 @@ class OrderService {
    * Create order after successful payment (webhook)
    * Handles idempotency to prevent duplicate orders
    */
-  async createOrderWithPayment(userId, email, name, address, items, total, status, stripeSessionId) {
+  async createOrderWithPayment(
+    userId,
+    address,
+    items,
+    total,
+    status,
+    stripeSessionId
+  ) {
     try {
       console.log("🛒 Creating order after successful payment...");
       console.log("📋 Order Data:", {
         userId,
-        email,
-        name,
+
         address,
         itemsCount: items.length,
         total,
         status,
-        stripeSessionId
+        stripeSessionId,
       });
-
-      // Validate required data
-      if (!email) {
-        throw new Error("Email is required");
-      }
 
       if (!userId) {
         throw new Error("User ID is required");
@@ -51,7 +52,10 @@ class OrderService {
       }
 
       // Check if order already exists with this stripe session ID
-      console.log("🔍 Checking for existing order with session ID:", stripeSessionId);
+      console.log(
+        "🔍 Checking for existing order with session ID:",
+        stripeSessionId
+      );
       const { data: existingOrder, error: checkError } = await this.supabase
         .from("orders")
         .select("id, status, total_amount")
@@ -68,15 +72,15 @@ class OrderService {
         console.log("📊 Existing order details:", {
           id: existingOrder.id,
           status: existingOrder.status,
-          total: existingOrder.total_amount
+          total: existingOrder.total_amount,
         });
-        
+
         // Return existing order details
         return {
           success: true,
           order: existingOrder,
           message: "Order already exists",
-          isExisting: true
+          isExisting: true,
         };
       }
 
@@ -102,19 +106,27 @@ class OrderService {
 
         if (orderError) {
           // Check if it's a duplicate key error
-          if (orderError.code === '23505' && orderError.message.includes('stripe_session_id')) {
-            console.log("⚠️ Duplicate key error - order already exists, fetching existing order...");
-            
+          if (
+            orderError.code === "23505" &&
+            orderError.message.includes("stripe_session_id")
+          ) {
+            console.log(
+              "⚠️ Duplicate key error - order already exists, fetching existing order..."
+            );
+
             // Fetch the existing order
-            const { data: existingOrderData, error: fetchError } = await this.supabase
-              .from("orders")
-              .select("*")
-              .eq("stripe_session_id", stripeSessionId)
-              .single();
+            const { data: existingOrderData, error: fetchError } =
+              await this.supabase
+                .from("orders")
+                .select("*")
+                .eq("stripe_session_id", stripeSessionId)
+                .single();
 
             if (fetchError) {
               console.error("❌ Error fetching existing order:", fetchError);
-              throw new Error("Failed to fetch existing order after duplicate key error");
+              throw new Error(
+                "Failed to fetch existing order after duplicate key error"
+              );
             }
 
             console.log("✅ Retrieved existing order:", existingOrderData.id);
@@ -122,17 +134,16 @@ class OrderService {
               success: true,
               order: existingOrderData,
               message: "Order already exists (handled duplicate key)",
-              isExisting: true
+              isExisting: true,
             };
           }
-          
+
           console.error("❌ Database error creating order:", orderError);
           throw new Error("Failed to create order in database");
         }
 
         order = newOrder;
         console.log("✅ Order created in database:", order.id);
-
       } catch (insertError) {
         console.error("❌ Error during order insertion:", insertError);
         throw insertError;
@@ -140,9 +151,9 @@ class OrderService {
 
       // Create order items
       console.log("📦 Creating order items for order:", order.id);
-      const orderItems = items.map(item => {
+      const orderItems = items.map((item) => {
         console.log("📦 Processing item:", item);
-        
+
         return {
           order_id: order.id,
           product_id: item.product_id || item.id,
@@ -150,7 +161,8 @@ class OrderService {
           price: item.price || 0,
           selected_color: item.color || item.selected_color || null,
           selected_size: item.size || item.selected_size || null,
-          delivery_option: item.deliveryOption || item.delivery_option || "pay_on_website",
+          delivery_option:
+            item.deliveryOption || item.delivery_option || "pay_on_website",
           status: "pending",
           created_at: new Date().toISOString(),
         };
@@ -175,7 +187,7 @@ class OrderService {
         success: true,
         order: order,
         orderItems: orderItemsData,
-        isExisting: false
+        isExisting: false,
       };
     } catch (error) {
       console.error("❌ Error in createOrderWithPayment:", error);
@@ -189,13 +201,13 @@ class OrderService {
   async clearCartItems(cartId) {
     try {
       console.log("🛒 Clearing cart items for cart ID:", cartId);
-      
+
       if (!cartId) {
         console.log("⚠️ No cart ID provided, skipping cart clearing");
         return {
           success: true,
           deletedCount: 0,
-          message: "No cart ID provided"
+          message: "No cart ID provided",
         };
       }
 
@@ -210,14 +222,18 @@ class OrderService {
         throw new Error("Failed to fetch cart items");
       }
 
-      console.log("📦 Found cart items to delete:", cartItems?.length || 0, "items");
+      console.log(
+        "📦 Found cart items to delete:",
+        cartItems?.length || 0,
+        "items"
+      );
 
       if (!cartItems || cartItems.length === 0) {
         console.log("ℹ️ No cart items found to delete");
         return {
           success: true,
           deletedCount: 0,
-          message: "No cart items found"
+          message: "No cart items found",
         };
       }
 
@@ -233,15 +249,19 @@ class OrderService {
         throw new Error("Failed to delete cart items");
       }
 
-      console.log("✅ Cart items deleted successfully:", deletedItems?.length || 0, "items");
+      console.log(
+        "✅ Cart items deleted successfully:",
+        deletedItems?.length || 0,
+        "items"
+      );
       console.log("📦 Deleted items:", deletedItems);
-      
+
       return {
         success: true,
         deletedCount: deletedItems?.length || 0,
         message: "Cart items cleared successfully",
         deletedItems: deletedItems,
-        cartId: cartId
+        cartId: cartId,
       };
     } catch (error) {
       console.error("❌ Error in clearCartItems:", error);
@@ -256,7 +276,7 @@ class OrderService {
   async handleWebhookRetry(stripeSessionId) {
     try {
       console.log("🔄 Handling webhook retry for session:", stripeSessionId);
-      
+
       const { data: existingOrder, error } = await this.supabase
         .from("orders")
         .select("id, status, total_amount, created_at")
@@ -264,20 +284,26 @@ class OrderService {
         .maybeSingle();
 
       if (error) {
-        console.error("❌ Error checking for existing order during retry:", error);
+        console.error(
+          "❌ Error checking for existing order during retry:",
+          error
+        );
         return { success: false, error: "Failed to check existing order" };
       }
 
       if (existingOrder) {
         console.log("✅ Order exists, retry handled gracefully");
-        return { 
-          success: true, 
-          order: existingOrder, 
-          message: "Order already exists from previous webhook" 
+        return {
+          success: true,
+          order: existingOrder,
+          message: "Order already exists from previous webhook",
         };
       }
 
-      console.log("⚠️ No order found for session during retry:", stripeSessionId);
+      console.log(
+        "⚠️ No order found for session during retry:",
+        stripeSessionId
+      );
       return { success: false, message: "No order found for session" };
     } catch (error) {
       console.error("❌ Error in handleWebhookRetry:", error);
@@ -286,4 +312,4 @@ class OrderService {
   }
 }
 
-export default new OrderService;
+export default new OrderService();
