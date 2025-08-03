@@ -1,13 +1,18 @@
 import Stripe from "stripe";
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
-
 class StripeService {
   constructor() {
     this.stripe = stripe;
   }
 
-  async createCheckoutSession(orderData, cartid, userId, successUrl, cancelUrl) {
+  async createCheckoutSession(
+    orderData,
+    cartid,
+    userId,
+    successUrl,
+    cancelUrl
+  ) {
     try {
       const { id, items, amount, customerEmail, customerName, address } =
         orderData;
@@ -48,10 +53,10 @@ class StripeService {
           amount: amount.toString(),
           email: customerEmail,
           name: customerName,
-          items: items.map((item) => item.name || "Unknown").join(", "),
+
           itemsJson: itemsJson, // Use validated JSON
           address: addressJson,
-          timestamp: new Date().toISOString(),
+
           cartid: cartid,
         },
       });
@@ -95,25 +100,25 @@ class StripeService {
             client_reference_id: session.client_reference_id,
             metadata: session.metadata,
           });
-            let parsedItems, parsedAddress;
-            
-            try {
-              parsedItems = JSON.parse(session.metadata.itemsJson);
-              parsedAddress = JSON.parse(session.metadata.address);
-            } catch (parseError) {
-              console.error("❌ Error parsing metadata:", parseError);
-              console.error("📄 Raw itemsJson:", session.metadata.itemsJson);
-              console.error("📄 Raw address:", session.metadata.address);
-              throw new Error("Failed to parse metadata");
-            }
-            
-                        console.log("📦 Parsed Items:", parsedItems);
-            console.log("📦 Parsed Address:", parsedAddress);
-            
-            // Order creation is handled in the controller, not here
-            console.log("✅ Webhook event processed successfully");
+          let parsedItems, parsedAddress;
 
-            return { status: "success", eventType: type, sessionId: session.id };
+          try {
+            parsedItems = JSON.parse(session.metadata.itemsJson);
+            parsedAddress = JSON.parse(session.metadata.address);
+          } catch (parseError) {
+            console.error("❌ Error parsing metadata:", parseError);
+            console.error("📄 Raw itemsJson:", session.metadata.itemsJson);
+            console.error("📄 Raw address:", session.metadata.address);
+            throw new Error("Failed to parse metadata");
+          }
+
+          console.log("📦 Parsed Items:", parsedItems);
+          console.log("📦 Parsed Address:", parsedAddress);
+
+          // Order creation is handled in the controller, not here
+          console.log("✅ Webhook event processed successfully");
+
+          return { status: "success", eventType: type, sessionId: session.id };
         }
 
         case "checkout.session.async_payment_succeeded": {
