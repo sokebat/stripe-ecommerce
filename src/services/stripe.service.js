@@ -21,28 +21,15 @@ class StripeService {
           currency: "usd",
           product_data: {
             name: item.name || "Unknown Product",
-            description: item.description || `Product: ${item.name || "Unknown"}`,
+            description:
+              item.description || `Product: ${item.name || "Unknown"}`,
           },
           unit_amount: item.price || 0,
         },
         quantity: item.quantity || 1,
       }));
 
-      console.log("📦 Items being sent to Stripe:", items);
-      console.log("📦 Line items for Stripe:", lineItems);
-
-      // Validate JSON before sending
       const itemsJson = JSON.stringify(items);
-      console.log("📦 Items JSON for metadata:", itemsJson);
-      
-      // Test JSON parsing to ensure it's valid
-      try {
-        JSON.parse(itemsJson);
-        console.log("✅ Items JSON is valid");
-      } catch (error) {
-        console.error("❌ Items JSON is invalid:", error);
-        throw new Error("Invalid items JSON");
-      }
 
       // Create a checkout session
       const session = await this.stripe.checkout.sessions.create({
@@ -65,8 +52,6 @@ class StripeService {
         },
       });
 
-   
-
       return {
         sessionId: session.id,
         sessionUrl: session.url,
@@ -77,7 +62,6 @@ class StripeService {
     }
   }
 
-   
   async getSession(sessionId) {
     try {
       const session = await this.stripe.checkout.sessions.retrieve(sessionId);
@@ -93,9 +77,7 @@ class StripeService {
       const { type, data } = event;
 
       console.log(`\n=== PROCESSING STRIPE EVENT: ${type} ===`);
-      console.log(`Event ID: ${event.id}`);
-      console.log(`Created: ${new Date(event.created * 1000).toISOString()}`);
-
+ 
       switch (type) {
         case "checkout.session.completed": {
           console.log("\n=== CHECKOUT SESSION COMPLETED ===");
@@ -109,18 +91,6 @@ class StripeService {
             client_reference_id: session.client_reference_id,
             metadata: session.metadata,
           });
-
-          // Enhanced logging for order payments
-          if (session.metadata && session.metadata.orderId) {
-            console.log("\n=== ORDER PAYMENT COMPLETED ===");
-            console.log("Order ID:", session.metadata.orderId);
-            console.log("Business ID:", session.metadata.businessId);
-            console.log("Payment Status:", session.payment_status);
-            console.log("Amount Paid:", session.amount_total / 100); // Convert from cents
-            console.log("Currency:", session.currency);
-
-          
-          }
 
           return { status: "success", eventType: type, sessionId: session.id };
         }
