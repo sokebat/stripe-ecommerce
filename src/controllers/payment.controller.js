@@ -1,7 +1,10 @@
 import stripeService from "../services/stripe.service.js";
+import orderService from "../services/order.service.js";
+import { createAuthenticatedClient } from "../config/supabase.js";
 
 export const createPayment = async (req, res) => {
   try {
+    const supabase = createAuthenticatedClient(req.headers.authorization);
     const { userId, formatedCartItems, userEmail, userName, address } =
       req.body;
 
@@ -106,11 +109,33 @@ export const webhook = async (req, res) => {
 
         console.log(session, "session");
 
-        const parsedItems = JSON.parse(session.metadata.itemsJson);
+        let parsedItems, parsedAddress;
+        
+        try {
+          parsedItems = JSON.parse(session.metadata.itemsJson);
+          parsedAddress = JSON.parse(session.metadata.address);
+        } catch (parseError) {
+          console.error("❌ Error parsing metadata:", parseError);
+          console.error("📄 Raw itemsJson:", session.metadata.itemsJson);
+          console.error("📄 Raw address:", session.metadata.address);
+          return res.status(400).json({ error: "Failed to parse metadata" });
+        }
+        
+        console.log("📦 Parsed Items:", parsedItems);
+        console.log("📦 Parsed Address:", parsedAddress);
+        
+        const result = await orderService.createOrderWithPayment(
+          session.metadata.userId,
+          session.customer_details.email,
+          session.customer_details.name,
+          parsedAddress,
+          parsedItems,
+          session.amount_total / 100,
+          "processing",
+          session.id
+        );
 
-        console.log("✅ Items JSON parsed successfully:", parsedItems);
-
-        const result = await orderService.createOrderWithPayment(parsedItems);
+        console.log("✅ Order created successfully:", result);
       } else if (event.type === "payment_intent.succeeded") {
         const paymentIntent = event.data.object;
         console.log("✅ PAYMENT INTENT SUCCEEDED");

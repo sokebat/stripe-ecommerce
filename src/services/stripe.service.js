@@ -1,5 +1,7 @@
 import Stripe from "stripe";
+import orderService from "./order.service.js";
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+
 
 class StripeService {
   constructor() {
@@ -93,6 +95,31 @@ class StripeService {
             client_reference_id: session.client_reference_id,
             metadata: session.metadata,
           });
+            let parsedItems, parsedAddress;
+            
+            try {
+              parsedItems = JSON.parse(session.metadata.itemsJson);
+              parsedAddress = JSON.parse(session.metadata.address);
+            } catch (parseError) {
+              console.error("❌ Error parsing metadata:", parseError);
+              console.error("📄 Raw itemsJson:", session.metadata.itemsJson);
+              console.error("📄 Raw address:", session.metadata.address);
+              throw new Error("Failed to parse metadata");
+            }
+            
+            console.log("📦 Parsed Items:", parsedItems);
+            console.log("📦 Parsed Address:", parsedAddress);
+            
+            const result = await orderService.createOrderWithPayment(
+              session.metadata.userId,
+              session.customer_details.email,
+              session.customer_details.name,
+              parsedAddress,
+              parsedItems,
+              session.amount_total / 100,
+              "processing",
+              session.id
+            );
 
           return { status: "success", eventType: type, sessionId: session.id };
         }
