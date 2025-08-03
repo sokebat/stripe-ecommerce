@@ -23,7 +23,6 @@ class OrderService {
         total,
         status = "paid",
         stripe_session_id,
-        stripe_payment_intent_id,
       } = orderData;
 
       // Validate required data
@@ -42,7 +41,7 @@ class OrderService {
           total: total,
           items: items,
           stripe_session_id: stripe_session_id,
-          stripe_payment_intent_id: stripe_payment_intent_id,
+
           payment_status: "succeeded",
           created_at: new Date().toISOString(),
         })

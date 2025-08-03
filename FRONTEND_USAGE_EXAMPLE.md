@@ -67,6 +67,8 @@ const createPayment = useMutation({
 }
 ```
 
+**Items are automatically sent to Stripe metadata and retrieved in webhook!** 🎉
+
 ## Payment Response
 
 ```javascript

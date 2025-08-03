@@ -133,16 +133,42 @@ export const webhook = async (req, res) => {
 
           // Create order in database after successful payment
           try {
+            // Parse items from metadata (prefer JSON, fallback to comma-separated string)
+            let items = [];
+            if (session.metadata?.itemsJson) {
+              try {
+                items = JSON.parse(session.metadata.itemsJson);
+                console.log("📦 Items from JSON metadata:", items);
+              } catch (parseError) {
+                console.error("❌ Error parsing items JSON:", parseError);
+                // Fallback to comma-separated string
+                const itemsString = session.metadata?.items || '';
+                items = itemsString.split(', ').map(itemName => ({
+                  name: itemName.trim(),
+                  quantity: 1
+                }));
+              }
+            } else {
+              // Fallback to comma-separated string
+              const itemsString = session.metadata?.items || '';
+              items = itemsString.split(', ').map(itemName => ({
+                name: itemName.trim(),
+                quantity: 1
+              }));
+            }
+
             const orderData = {
-              userId: session.metadata?.customerId || 'unknown',
+              userId: session.metadata?.customerId || session.metadata?.userId || 'unknown',
               email: session.customer_email,
-              name: session.customer_details?.name || 'Unknown',
-              items: session.metadata?.items ? JSON.parse(session.metadata.items) : [],
+              name: session.customer_details?.name || session.metadata?.name || 'Unknown',
+              items: items,
               total: session.amount_total,
               status: 'paid',
               stripe_session_id: session.id,
               stripe_payment_intent_id: session.payment_intent
             };
+
+            console.log("📋 Order data:", orderData);
 
             const result = await orderService.createOrderWithPayment(orderData);
             console.log("✅ Order created after successful payment:", result.order.id);

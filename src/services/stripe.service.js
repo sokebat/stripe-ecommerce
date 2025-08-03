@@ -32,11 +32,12 @@ class StripeService {
         customer_email: email,
 
         metadata: {
-          orderId: id,
+          userId: customerId,
           amount: amount,
           email: email,
           name: name,
           items: items.map((item) => item.name).join(", "),
+          itemsJson: JSON.stringify(items), // Store full items data as JSON
           customerId: customerId,
         },
       });
@@ -103,7 +104,7 @@ class StripeService {
           return { status: "success", eventType: type, sessionId: session.id };
         }
 
-        case "payment_intent.succeeded": {
+        case "checkout.session.async_payment_succeeded": {
           console.log("\n=== PAYMENT INTENT SUCCEEDED ===");
 
           return {
@@ -113,7 +114,7 @@ class StripeService {
           };
         }
 
-        case "payment_intent.payment_failed": {
+        case "checkout.session.async_payment_failed": {
           console.log("\n=== PAYMENT INTENT FAILED ===");
 
           return {
