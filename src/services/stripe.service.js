@@ -1,5 +1,4 @@
 import Stripe from "stripe";
-import orderService from "./order.service.js";
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
 
@@ -107,21 +106,13 @@ class StripeService {
               throw new Error("Failed to parse metadata");
             }
             
-            console.log("📦 Parsed Items:", parsedItems);
+                        console.log("📦 Parsed Items:", parsedItems);
             console.log("📦 Parsed Address:", parsedAddress);
             
-            const result = await orderService.createOrderWithPayment(
-              session.metadata.userId,
-              session.customer_details.email,
-              session.customer_details.name,
-              parsedAddress,
-              parsedItems,
-              session.amount_total / 100,
-              "processing",
-              session.id
-            );
+            // Order creation is handled in the controller, not here
+            console.log("✅ Webhook event processed successfully");
 
-          return { status: "success", eventType: type, sessionId: session.id };
+            return { status: "success", eventType: type, sessionId: session.id };
         }
 
         case "checkout.session.async_payment_succeeded": {

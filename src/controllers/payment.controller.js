@@ -135,7 +135,11 @@ export const webhook = async (req, res) => {
           session.id
         );
 
-        console.log("✅ Order created successfully:", result);
+        if (result.isExisting) {
+          console.log("ℹ️ Order already existed:", result.message);
+        } else {
+          console.log("✅ New order created successfully:", result.order.id);
+        }
       } else if (event.type === "payment_intent.succeeded") {
         const paymentIntent = event.data.object;
         console.log("✅ PAYMENT INTENT SUCCEEDED");
