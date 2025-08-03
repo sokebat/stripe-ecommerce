@@ -19,7 +19,7 @@ export const createPayment = async (req, res) => {
     ) {
       return res.status(400).json({ error: "Orders are required" });
     }
-
+     const cartid = formatedCartItems[0].cart_id;
     const stripeItems = formatedCartItems.map((order) => ({
       name: order.name || `Product ${order.product_id}`,
       description: order.description || `Product ${order.product_id}`,
@@ -36,9 +36,10 @@ export const createPayment = async (req, res) => {
       (sum, item) => sum + item.total,
       0
     );
-
+    console.log(formatedCartItems, "formatedCartItems");
     // Create order data for Stripe
     const orderData = {
+      
       id: `order_${userEmail}_${userId}`,
       amount: totalAmount,
       customerEmail: userEmail,
@@ -46,10 +47,11 @@ export const createPayment = async (req, res) => {
       items: stripeItems,
       address: address,
     };
-
+ console.log(cartid, "cartid");
     // Create checkout session
     const result = await stripeService.createCheckoutSession(
       orderData,
+      cartid,
       userId,
       `${process.env.FRONTEND_URL?.replace(/\/$/, "")}/success`,
       `${process.env.FRONTEND_URL?.replace(/\/$/, "")}/cancel`
@@ -139,6 +141,24 @@ export const webhook = async (req, res) => {
           console.log("ℹ️ Order already existed:", result.message);
         } else {
           console.log("✅ New order created successfully:", result.order.id);
+          
+          // Clear cart items after successful order creation
+          // This ensures the cart is emptied after payment success
+          if (session.metadata.cartid) {
+            try {
+              console.log("🛒 Clearing cart items for cart ID:", session.metadata.cartid);
+              const cartResult = await orderService.clearCartItems(session.metadata.cartid);
+              console.log("✅ Cart items cleared successfully:", cartResult.deletedCount, "items deleted");
+              
+              // Note: Frontend should also clear localStorage for these items
+              // The deletedItems array contains the items that were removed
+            } catch (cartError) {
+              console.error("❌ Error clearing cart items:", cartError);
+              // Don't fail the webhook if cart clearing fails
+            }
+          } else {
+            console.log("⚠️ No cart ID found in metadata, skipping cart clearing");
+          }
         }
       } else if (event.type === "payment_intent.succeeded") {
         const paymentIntent = event.data.object;

@@ -7,7 +7,7 @@ class StripeService {
     this.stripe = stripe;
   }
 
-  async createCheckoutSession(orderData, userId, successUrl, cancelUrl) {
+  async createCheckoutSession(orderData, cartid, userId, successUrl, cancelUrl) {
     try {
       const { id, items, amount, customerEmail, customerName, address } =
         orderData;
@@ -52,6 +52,7 @@ class StripeService {
           itemsJson: itemsJson, // Use validated JSON
           address: addressJson,
           timestamp: new Date().toISOString(),
+          cartid: cartid,
         },
       });
 

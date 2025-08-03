@@ -92,7 +92,7 @@ class OrderService {
             stripe_session_id: stripeSessionId,
             total_amount: total,
             currency: "NPR", // Default currency
-            status: status,
+            status: status || "processing",
             shipping_address: address,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
@@ -179,6 +179,72 @@ class OrderService {
       };
     } catch (error) {
       console.error("❌ Error in createOrderWithPayment:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Clear cart items after successful order creation
+   */
+  async clearCartItems(cartId) {
+    try {
+      console.log("🛒 Clearing cart items for cart ID:", cartId);
+      
+      if (!cartId) {
+        console.log("⚠️ No cart ID provided, skipping cart clearing");
+        return {
+          success: true,
+          deletedCount: 0,
+          message: "No cart ID provided"
+        };
+      }
+
+      // First, get the cart items to log what we're deleting
+      const { data: cartItems, error: fetchError } = await this.supabase
+        .from("cart_items")
+        .select("id, product_id, quantity")
+        .eq("cart_id", cartId);
+
+      if (fetchError) {
+        console.error("❌ Error fetching cart items:", fetchError);
+        throw new Error("Failed to fetch cart items");
+      }
+
+      console.log("📦 Found cart items to delete:", cartItems?.length || 0, "items");
+
+      if (!cartItems || cartItems.length === 0) {
+        console.log("ℹ️ No cart items found to delete");
+        return {
+          success: true,
+          deletedCount: 0,
+          message: "No cart items found"
+        };
+      }
+
+      // Delete all cart items for this cart
+      const { data: deletedItems, error: deleteError } = await this.supabase
+        .from("cart_items")
+        .delete()
+        .eq("cart_id", cartId)
+        .select("id, product_id");
+
+      if (deleteError) {
+        console.error("❌ Error deleting cart items:", deleteError);
+        throw new Error("Failed to delete cart items");
+      }
+
+      console.log("✅ Cart items deleted successfully:", deletedItems?.length || 0, "items");
+      console.log("📦 Deleted items:", deletedItems);
+      
+      return {
+        success: true,
+        deletedCount: deletedItems?.length || 0,
+        message: "Cart items cleared successfully",
+        deletedItems: deletedItems,
+        cartId: cartId
+      };
+    } catch (error) {
+      console.error("❌ Error in clearCartItems:", error);
       throw error;
     }
   }
