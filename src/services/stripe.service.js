@@ -10,7 +10,6 @@ class StripeService {
     try {
       const { id, items, email, name, amount } = orderData;
 
-    
       const lineItems = items.map((item) => ({
         price_data: {
           currency: "usd",
@@ -54,6 +53,19 @@ class StripeService {
     }
   }
 
+  /**
+   * Get session by ID
+   */
+  async getSession(sessionId) {
+    try {
+      const session = await this.stripe.checkout.sessions.retrieve(sessionId);
+      return session;
+    } catch (error) {
+      console.error("Error retrieving Stripe session:", error);
+      throw error;
+    }
+  }
+
   async handleWebhookEvent(event) {
     try {
       const { type, data } = event;
@@ -85,10 +97,7 @@ class StripeService {
             console.log("Amount Paid:", session.amount_total / 100); // Convert from cents
             console.log("Currency:", session.currency);
 
-            // Log any customer info we have for debugging
-            if (session.metadata.customerPhone) {
-              console.log("Customer Phone:", session.metadata.customerPhone);
-            }
+          
           }
 
           return { status: "success", eventType: type, sessionId: session.id };
@@ -96,24 +105,6 @@ class StripeService {
 
         case "payment_intent.succeeded": {
           console.log("\n=== PAYMENT INTENT SUCCEEDED ===");
-          const paymentIntent = data.object;
-          console.log("Payment Intent details:", {
-            id: paymentIntent.id,
-            amount: paymentIntent.amount,
-            currency: paymentIntent.currency,
-            status: paymentIntent.status,
-            metadata: paymentIntent.metadata,
-          });
-
-          // Enhanced logging for order payments
-          if (paymentIntent.metadata && paymentIntent.metadata.orderId) {
-            console.log("\n=== ORDER PAYMENT INTENT SUCCEEDED ===");
-            console.log("Order ID:", paymentIntent.metadata.orderId);
-            console.log("Business ID:", paymentIntent.metadata.businessId);
-            console.log("Payment Status:", paymentIntent.status);
-            console.log("Amount Paid:", paymentIntent.amount / 100); // Convert from cents
-            console.log("Currency:", paymentIntent.currency);
-          }
 
           return {
             status: "success",
@@ -124,31 +115,6 @@ class StripeService {
 
         case "payment_intent.payment_failed": {
           console.log("\n=== PAYMENT INTENT FAILED ===");
-          const paymentIntent = data.object;
-          console.log("Failed Payment Intent details:", {
-            id: paymentIntent.id,
-            amount: paymentIntent.amount,
-            currency: paymentIntent.currency,
-            status: paymentIntent.status,
-            last_payment_error:
-              paymentIntent.last_payment_error?.message || "No error details",
-            metadata: paymentIntent.metadata,
-          });
-
-          // Enhanced logging for order payment failures
-          if (paymentIntent.metadata && paymentIntent.metadata.orderId) {
-            console.log("\n=== ORDER PAYMENT INTENT FAILED ===");
-            console.log("Order ID:", paymentIntent.metadata.orderId);
-            console.log("Business ID:", paymentIntent.metadata.businessId);
-            console.log(
-              "Failure Reason:",
-              paymentIntent.last_payment_error?.message || "Unknown error"
-            );
-            console.log(
-              "Decline Code:",
-              paymentIntent.last_payment_error?.decline_code || "None"
-            );
-          }
 
           return {
             status: "failed",
