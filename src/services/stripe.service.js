@@ -6,9 +6,10 @@ class StripeService {
     this.stripe = stripe;
   }
 
-  async createCheckoutSession(orderData, customerId, successUrl, cancelUrl) {
+  async createCheckoutSession(orderData, userId, successUrl, cancelUrl) {
     try {
-      const { id, items, email, name, amount } = orderData;
+      const { id, items, amount, customerEmail, customerName, address } =
+        orderData;
 
       // Validate items data
       if (!items || !Array.isArray(items) || items.length === 0) {
@@ -38,16 +39,16 @@ class StripeService {
         success_url: successUrl,
         cancel_url: cancelUrl,
         client_reference_id: id,
-        customer_email: email,
+        customer_email: customerEmail,
 
         metadata: {
-          userId: customerId,
+          userId: userId,
           amount: amount.toString(),
-          email: email,
-          name: name,
+          email: customerEmail,
+          name: customerName,
           items: items.map((item) => item.name || "Unknown").join(", "),
           itemsJson: itemsJson, // Use validated JSON
-          customerId: customerId,
+          address: address,
           timestamp: new Date().toISOString(),
         },
       });
@@ -77,7 +78,7 @@ class StripeService {
       const { type, data } = event;
 
       console.log(`\n=== PROCESSING STRIPE EVENT: ${type} ===`);
- 
+
       switch (type) {
         case "checkout.session.completed": {
           console.log("\n=== CHECKOUT SESSION COMPLETED ===");

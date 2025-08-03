@@ -2,13 +2,8 @@ import stripeService from "../services/stripe.service.js";
 
 export const createPayment = async (req, res) => {
   try {
-    const authHeader = req.headers.authorization;
-    const token =
-      authHeader && authHeader.startsWith("Bearer")
-        ? authHeader.substring(7)
-        : null;
-
-    const { userId, formatedCartItems, email, name } = req.body;
+    const { userId, formatedCartItems, userEmail, userName, address } =
+      req.body;
 
     if (!userId) {
       return res.status(400).json({ error: "User ID is required" });
@@ -26,7 +21,11 @@ export const createPayment = async (req, res) => {
       name: order.name || `Product ${order.product_id}`,
       description: order.description || `Product ${order.product_id}`,
       price: order.price,
+      deliveryOption: order.delivery_option,
+      size: order.selected_size,
+      color: order.selected_color,
       quantity: order.quantity,
+      image: order.image,
     }));
 
     // Calculate total amount from cart items
@@ -37,11 +36,12 @@ export const createPayment = async (req, res) => {
 
     // Create order data for Stripe
     const orderData = {
-      id: `order_${email}_${userId}`,
+      id: `order_${userEmail}_${userId}`,
       amount: totalAmount,
-      customerEmail: email,
-      customerName: name,
+      customerEmail: userEmail,
+      customerName: userName,
       items: stripeItems,
+      address: address,
     };
 
     // Create checkout session
@@ -56,7 +56,7 @@ export const createPayment = async (req, res) => {
       success: true,
       sessionId: result.sessionId,
       sessionUrl: result.sessionUrl,
-      orderId: `order_${email}_${userId}`,
+      orderId: `order_${userEmail}_${userId}`,
       totalAmount: totalAmount,
       orders: formatedCartItems,
     });
@@ -103,16 +103,14 @@ export const webhook = async (req, res) => {
       if (event.type === "checkout.session.completed") {
         const session = event.data.object;
         console.log("🎉 CHECKOUT SESSION COMPLETED");
-    
 
-        if (session.metadata?.itemsJson) {
-          try {
-            const parsedItems = JSON.parse(session.metadata.itemsJson);
-            console.log("  ✅ Items JSON parsed successfully:", parsedItems);
-          } catch (parseError) {
-            console.log("  ❌ Items JSON parse error:", parseError.message);
-          }
-        }
+        console.log(session, "session");
+
+        const parsedItems = JSON.parse(session.metadata.itemsJson);
+
+        console.log("✅ Items JSON parsed successfully:", parsedItems);
+
+        const result = await orderService.createOrderWithPayment(parsedItems);
       } else if (event.type === "payment_intent.succeeded") {
         const paymentIntent = event.data.object;
         console.log("✅ PAYMENT INTENT SUCCEEDED");
