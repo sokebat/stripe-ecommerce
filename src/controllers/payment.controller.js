@@ -1,8 +1,5 @@
 import stripeService from "../services/stripe.service.js";
-import OrderService from "../services/order.service.js";
 
-const orderService = new OrderService();
-  
 export const createPayment = async (req, res) => {
   try {
     const authHeader = req.headers.authorization;
@@ -11,7 +8,6 @@ export const createPayment = async (req, res) => {
         ? authHeader.substring(7)
         : null;
 
-    
     const { userId, formatedCartItems, email, name } = req.body;
 
     if (!userId) {
@@ -52,11 +48,10 @@ export const createPayment = async (req, res) => {
     const result = await stripeService.createCheckoutSession(
       orderData,
       userId,
-      `${process.env.FRONTEND_URL?.replace(/\/$/, '')}/success`,
-      `${process.env.FRONTEND_URL?.replace(/\/$/, '')}/cancel`
+      `${process.env.FRONTEND_URL?.replace(/\/$/, "")}/success`,
+      `${process.env.FRONTEND_URL?.replace(/\/$/, "")}/cancel`
     );
 
-   
     res.json({
       success: true,
       sessionId: result.sessionId,
@@ -110,111 +105,66 @@ export const webhook = async (req, res) => {
       );
 
       event = JSON.parse(rawBodyString);
-      console.log("✅ Event parsed successfully");
-      console.log(`📋 Event ID: ${event.id}`);
-      console.log(`📋 Event Type: ${event.type}`);
-      console.log(
-        `📋 Event Created: ${new Date(event.created * 1000).toISOString()}`
-      );
-
-              // Log event details based on type
-        if (event.type === "checkout.session.completed") {
-          const session = event.data.object;
-          console.log("🎉 CHECKOUT SESSION COMPLETED");
-          console.log("📊 Session Details:", {
-            id: session.id,
-            payment_status: session.payment_status,
-            client_reference_id: session.client_reference_id,
-            metadata: session.metadata,
-            amount_total: session.amount_total,
-            customer_email: session.customer_email,
-            currency: session.currency,
-          });
-
-          // Create order in database after successful payment
+      
+      // Log event details based on type
+      if (event.type === "checkout.session.completed") {
+        const session = event.data.object;
+        console.log("🎉 CHECKOUT SESSION COMPLETED");
+        console.log("📊 Session Details:", {
+          id: session.id,
+          payment_status: session.payment_status,
+          client_reference_id: session.client_reference_id,
+          metadata: session.metadata,
+          amount_total: session.amount_total,
+          customer_email: session.customer_email,
+          currency: session.currency,
+        });
+        
+        // Log metadata parsing details
+        console.log("🔍 Metadata Analysis:");
+        console.log("  - Raw metadata:", session.metadata);
+        console.log("  - Items string:", session.metadata?.items);
+        console.log("  - Items JSON:", session.metadata?.itemsJson);
+        
+        // Test JSON parsing
+        if (session.metadata?.itemsJson) {
           try {
-            // Parse items from metadata (prefer JSON, fallback to comma-separated string)
-            let items = [];
-            if (session.metadata?.itemsJson) {
-              try {
-                items = JSON.parse(session.metadata.itemsJson);
-                console.log("📦 Items from JSON metadata:", items);
-              } catch (parseError) {
-                console.error("❌ Error parsing items JSON:", parseError);
-                // Fallback to comma-separated string
-                const itemsString = session.metadata?.items || '';
-                items = itemsString.split(', ').map(itemName => ({
-                  name: itemName.trim(),
-                  quantity: 1
-                }));
-              }
-            } else {
-              // Fallback to comma-separated string
-              const itemsString = session.metadata?.items || '';
-              items = itemsString.split(', ').map(itemName => ({
-                name: itemName.trim(),
-                quantity: 1
-              }));
-            }
-
-            const orderData = {
-              userId: session.metadata?.customerId || session.metadata?.userId || 'unknown',
-              email: session.customer_email,
-              name: session.customer_details?.name || session.metadata?.name || 'Unknown',
-              items: items,
-              total: session.amount_total,
-              status: 'paid',
-              stripe_session_id: session.id,
-              stripe_payment_intent_id: session.payment_intent
-            };
-
-            console.log("📋 Order data:", orderData);
-
-            const result = await orderService.createOrderWithPayment(orderData);
-            console.log("✅ Order created after successful payment:", result.order.id);
-          } catch (orderError) {
-            console.error("❌ Error creating order after payment:", orderError);
+            const parsedItems = JSON.parse(session.metadata.itemsJson);
+            console.log("  ✅ Items JSON parsed successfully:", parsedItems);
+          } catch (parseError) {
+            console.log("  ❌ Items JSON parse error:", parseError.message);
+            console.log("  📄 Raw itemsJson value:", session.metadata.itemsJson);
           }
-          
-        } else if (event.type === "payment_intent.succeeded") {
-          const paymentIntent = event.data.object;
-          console.log("✅ PAYMENT INTENT SUCCEEDED");
-          console.log("📊 Payment Intent Details:", {
-            id: paymentIntent.id,
-            amount: paymentIntent.amount,
-            currency: paymentIntent.currency,
-            status: paymentIntent.status,
-            metadata: paymentIntent.metadata,
-          });
-        } else if (event.type === "payment_intent.payment_failed") {
-          const paymentIntent = event.data.object;
-          console.log("❌ PAYMENT INTENT FAILED");
-          console.log("📊 Failed Payment Details:", {
-            id: paymentIntent.id,
-            amount: paymentIntent.amount,
-            currency: paymentIntent.currency,
-            status: paymentIntent.status,
-            last_payment_error:
-              paymentIntent.last_payment_error?.message || "No error details",
-            metadata: paymentIntent.metadata,
-          });
-
-          // Handle failed payment with order service
-          try {
-            const errorMessage = paymentIntent.last_payment_error?.message || "Payment failed";
-            await orderService.handleFailedPayment(paymentIntent.id, errorMessage);
-            console.log("✅ Order updated after failed payment");
-          } catch (orderError) {
-            console.error("❌ Error updating order after failed payment:", orderError);
-          }
-          
-        } else {
-          console.log(`ℹ️ Unhandled event type: ${event.type}`);
-          console.log(
-            "📊 Event data preview:",
-            JSON.stringify(event.data, null, 2).substring(0, 500) + "..."
-          );
         }
+      } else if (event.type === "payment_intent.succeeded") {
+        const paymentIntent = event.data.object;
+        console.log("✅ PAYMENT INTENT SUCCEEDED");
+        console.log("📊 Payment Intent Details:", {
+          id: paymentIntent.id,
+          amount: paymentIntent.amount,
+          currency: paymentIntent.currency,
+          status: paymentIntent.status,
+          metadata: paymentIntent.metadata,
+        });
+      } else if (event.type === "payment_intent.payment_failed") {
+        const paymentIntent = event.data.object;
+        console.log("❌ PAYMENT INTENT FAILED");
+        console.log("📊 Failed Payment Details:", {
+          id: paymentIntent.id,
+          amount: paymentIntent.amount,
+          currency: paymentIntent.currency,
+          status: paymentIntent.status,
+          last_payment_error:
+            paymentIntent.last_payment_error?.message || "No error details",
+          metadata: paymentIntent.metadata,
+        });
+      } else {
+        console.log(`ℹ️ Unhandled event type: ${event.type}`);
+        console.log(
+          "📊 Event data preview:",
+          JSON.stringify(event.data, null, 2).substring(0, 500) + "..."
+        );
+      }
 
       // Immediately respond to Stripe to avoid timeout
       res.status(200).json({ received: true, success: true });

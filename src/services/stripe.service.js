@@ -10,17 +10,39 @@ class StripeService {
     try {
       const { id, items, email, name, amount } = orderData;
 
+      // Validate items data
+      if (!items || !Array.isArray(items) || items.length === 0) {
+        throw new Error("Invalid items data");
+      }
+
+      // Convert items to Stripe line items format
       const lineItems = items.map((item) => ({
         price_data: {
           currency: "usd",
           product_data: {
-            name: item.name,
-            description: item.description || item.name,
+            name: item.name || "Unknown Product",
+            description: item.description || `Product: ${item.name || "Unknown"}`,
           },
-          unit_amount: item.price,
+          unit_amount: item.price || 0,
         },
-        quantity: item.quantity,
+        quantity: item.quantity || 1,
       }));
+
+      console.log("📦 Items being sent to Stripe:", items);
+      console.log("📦 Line items for Stripe:", lineItems);
+
+      // Validate JSON before sending
+      const itemsJson = JSON.stringify(items);
+      console.log("📦 Items JSON for metadata:", itemsJson);
+      
+      // Test JSON parsing to ensure it's valid
+      try {
+        JSON.parse(itemsJson);
+        console.log("✅ Items JSON is valid");
+      } catch (error) {
+        console.error("❌ Items JSON is invalid:", error);
+        throw new Error("Invalid items JSON");
+      }
 
       // Create a checkout session
       const session = await this.stripe.checkout.sessions.create({
@@ -33,16 +55,17 @@ class StripeService {
 
         metadata: {
           userId: customerId,
-          amount: amount,
+          amount: amount.toString(),
           email: email,
           name: name,
-          items: items.map((item) => item.name).join(", "),
-          itemsJson: JSON.stringify(items), // Store full items data as JSON
+          items: items.map((item) => item.name || "Unknown").join(", "),
+          itemsJson: itemsJson, // Use validated JSON
           customerId: customerId,
+          timestamp: new Date().toISOString(),
         },
       });
 
-      console.log(session, "session from stripe");
+   
 
       return {
         sessionId: session.id,
@@ -54,9 +77,7 @@ class StripeService {
     }
   }
 
-  /**
-   * Get session by ID
-   */
+   
   async getSession(sessionId) {
     try {
       const session = await this.stripe.checkout.sessions.retrieve(sessionId);

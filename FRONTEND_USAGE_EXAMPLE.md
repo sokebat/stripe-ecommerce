@@ -4,12 +4,12 @@
 
 1. **Frontend**: Creates Stripe checkout session via `/api/payments` endpoint
 2. **Stripe**: Processes payment and sends webhook to `/api/payments/webhook`
-3. **Backend**: Creates order in database after successful payment confirmation
+3. **Backend**: Logs payment events (order creation handled separately)
 
 ## Flow:
 
 ```
-Frontend → Stripe Checkout → Payment Success → Webhook → Order Created in DB
+Frontend → Stripe Checkout → Payment Success → Webhook → Payment Logged
 ```
 
 ## Frontend Implementation:
@@ -129,7 +129,7 @@ FRONTEND_URL=http://localhost:3000
 
 1. **User clicks checkout** → Frontend calls `/api/payments`
 2. **Payment succeeds** → Stripe sends webhook to `/api/payments/webhook`
-3. **Webhook processes** → Order automatically created in database
+3. **Webhook logs** → Payment events logged for processing
 4. **User redirected** → Back to your success page
 
-No separate order creation needed - it's all handled automatically! 🎉 
+Order creation can be handled separately as needed! 🎉 
