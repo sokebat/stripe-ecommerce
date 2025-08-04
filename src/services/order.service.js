@@ -25,9 +25,8 @@ class OrderService {
    */
   async createOrderWithPayment(
     userId,
+    cartid,
     address,
-    items,
-    total,
     status,
     stripeSessionId
   ) {
@@ -35,10 +34,8 @@ class OrderService {
       console.log("🛒 Creating order after successful payment...");
       console.log("📋 Order Data:", {
         userId,
-
+        cartid,
         address,
-        itemsCount: items.length,
-        total,
         status,
         stripeSessionId,
       });
@@ -51,11 +48,16 @@ class OrderService {
         throw new Error("Stripe session ID is required");
       }
 
+      if (!cartid) {
+        throw new Error("Cart ID is required");
+      }
+
       // Check if order already exists with this stripe session ID
       console.log(
         "🔍 Checking for existing order with session ID:",
         stripeSessionId
       );
+
       const { data: existingOrder, error: checkError } = await this.supabase
         .from("orders")
         .select("id, status, total_amount")
@@ -86,6 +88,49 @@ class OrderService {
 
       console.log("✅ No existing order found, creating new order...");
 
+      // Fetch cart items with only required product details for order creation
+      console.log("🛒 Fetching cart items for cart ID:", cartid);
+      const { data: cartItems, error: fetchError } = await this.supabase
+        .from("cart_items")
+        .select(`
+          id, 
+          product_id, 
+          quantity, 
+          selected_color, 
+          selected_size, 
+          delivery_option,
+          products (
+            id,
+            name,
+            price,
+            sale_price
+          )
+        `)
+        .eq("cart_id", cartid);
+
+      if (fetchError) {
+        console.error("❌ Error fetching cart items:", fetchError);
+        throw new Error("Failed to fetch cart items");
+      }
+
+      if (!cartItems || cartItems.length === 0) {
+        console.error("❌ No cart items found for cart ID:", cartid);
+        throw new Error("No cart items found");
+      }
+
+      console.log("📦 Found cart items:", cartItems.length, "items");
+
+      // Calculate total amount from cart items
+      const totalAmount = cartItems.reduce((sum, item) => {
+        // Use sale_price if available, otherwise use regular price
+        const productPrice = item.products?.sale_price || item.products?.price || 0;
+        const itemTotal = productPrice * item.quantity;
+        console.log(`💰 Item: ${item.products?.name} - Price: ${productPrice} x ${item.quantity} = ${itemTotal}`);
+        return sum + itemTotal;
+      }, 0);
+
+      console.log("💰 Total amount calculated:", totalAmount);
+
       // Create order in database with error handling for duplicate key
       let order;
       try {
@@ -94,7 +139,7 @@ class OrderService {
           .insert({
             user_id: userId,
             stripe_session_id: stripeSessionId,
-            total_amount: total,
+            total_amount: totalAmount,
             currency: "NPR", // Default currency
             status: status || "processing",
             shipping_address: address,
@@ -149,22 +194,25 @@ class OrderService {
         throw insertError;
       }
 
-      // Create order items
+      // Create order items from cart items
       console.log("📦 Creating order items for order:", order.id);
-      const orderItems = items.map((item) => {
-        console.log("📦 Processing item:", item);
+      const orderItems = cartItems.map((cartItem) => {
+        console.log("📦 Processing cart item:", cartItem);
+        
+        // Use sale_price if available, otherwise use regular price
+        const productPrice = cartItem.products?.sale_price || cartItem.products?.price || 0;
 
         return {
           order_id: order.id,
-          product_id: item.product_id || item.id,
-          quantity: item.quantity || 1,
-          price: item.price || 0,
-          selected_color: item.color || item.selected_color || null,
-          selected_size: item.size || item.selected_size || null,
-          delivery_option:
-            item.deliveryOption || item.delivery_option || "pay_on_website",
+          product_id: cartItem.product_id,
+          quantity: cartItem.quantity,
+          price: productPrice,
+          selected_color: cartItem.selected_color || null,
+          selected_size: cartItem.selected_size || null,
+          delivery_option: cartItem.delivery_option || "pay_on_website",
           status: "pending",
           created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
         };
       });
 
@@ -181,6 +229,12 @@ class OrderService {
       }
 
       console.log("✅ Order items created:", orderItemsData.length, "items");
+
+      // Clear cart items after successful order creation
+      console.log("🛒 Clearing cart items after successful order creation");
+      const cartResult = await this.clearCartItems(cartid);
+      console.log("✅ Cart cleared:", cartResult.deletedCount, "items deleted");
+
       console.log("🎉 Order creation completed successfully!");
 
       return {
@@ -188,6 +242,7 @@ class OrderService {
         order: order,
         orderItems: orderItemsData,
         isExisting: false,
+        cartCleared: cartResult,
       };
     } catch (error) {
       console.error("❌ Error in createOrderWithPayment:", error);
@@ -214,7 +269,20 @@ class OrderService {
       // First, get the cart items to log what we're deleting
       const { data: cartItems, error: fetchError } = await this.supabase
         .from("cart_items")
-        .select("id, product_id, quantity")
+        .select(`
+          id, 
+          product_id, 
+          quantity, 
+          selected_color, 
+          selected_size, 
+          delivery_option,
+          products (
+            id,
+            name,
+            price,
+            sale_price
+          )
+        `)
         .eq("cart_id", cartId);
 
       if (fetchError) {
@@ -227,6 +295,14 @@ class OrderService {
         cartItems?.length || 0,
         "items"
       );
+      
+      // Log detailed cart items information
+      if (cartItems && cartItems.length > 0) {
+        cartItems.forEach((item, index) => {
+          const productPrice = item.products?.sale_price || item.products?.price || 0;
+          console.log(`📦 Item ${index + 1}: ${item.products?.name} - Qty: ${item.quantity} - Price: ${productPrice} - Color: ${item.selected_color || 'N/A'} - Size: ${item.selected_size || 'N/A'}`);
+        });
+      }
 
       if (!cartItems || cartItems.length === 0) {
         console.log("ℹ️ No cart items found to delete");
@@ -242,7 +318,7 @@ class OrderService {
         .from("cart_items")
         .delete()
         .eq("cart_id", cartId)
-        .select("id, product_id");
+        .select("id, cart_id, product_id, quantity, selected_color, selected_size, delivery_option");
 
       if (deleteError) {
         console.error("❌ Error deleting cart items:", deleteError);

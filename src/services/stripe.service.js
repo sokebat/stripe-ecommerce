@@ -36,7 +36,6 @@ class StripeService {
         quantity: item.quantity || 1,
       }));
 
-      const itemsJson = JSON.stringify(items);
       const addressJson = JSON.stringify(address);
 
       // Create a checkout session
@@ -50,8 +49,6 @@ class StripeService {
 
         metadata: {
           userId: userId,
-          amount: amount.toString(),
-          itemsJson: itemsJson,  
           address: addressJson,
           cartid: cartid,
         },
@@ -87,28 +84,17 @@ class StripeService {
         case "checkout.session.completed": {
           console.log("\n=== CHECKOUT SESSION COMPLETED ===");
           const session = data.object;
-          console.log("Session details:", {
-            id: session.id,
-            customer: session.customer,
-            customer_email: session.customer_email,
-            amount_total: session.amount_total,
-            payment_status: session.payment_status,
-            client_reference_id: session.client_reference_id,
-            metadata: session.metadata,
-          });
-          let parsedItems, parsedAddress;
+
+          let parsedAddress;
 
           try {
-            parsedItems = JSON.parse(session.metadata.itemsJson);
             parsedAddress = JSON.parse(session.metadata.address);
           } catch (parseError) {
             console.error("❌ Error parsing metadata:", parseError);
-            console.error("📄 Raw itemsJson:", session.metadata.itemsJson);
+            // console.error("📄 Raw itemsJson:", session.metadata.itemsJson);
             console.error("📄 Raw address:", session.metadata.address);
             throw new Error("Failed to parse metadata");
           }
-
-          console.log("📦 Parsed Items:", parsedItems);
           console.log("📦 Parsed Address:", parsedAddress);
 
           // Order creation is handled in the controller, not here

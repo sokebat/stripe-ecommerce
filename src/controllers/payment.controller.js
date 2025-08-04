@@ -4,7 +4,6 @@ import { createAuthenticatedClient } from "../config/supabase.js";
 
 export const createPayment = async (req, res) => {
   try {
-    const supabase = createAuthenticatedClient(req.headers.authorization);
     const { userId, formatedCartItems, userEmail, userName, address } =
       req.body;
 
@@ -19,7 +18,7 @@ export const createPayment = async (req, res) => {
     ) {
       return res.status(400).json({ error: "Orders are required" });
     }
-     const cartid = formatedCartItems[0].cart_id;
+    const cartid = formatedCartItems[0].cart_id;
     const stripeItems = formatedCartItems.map((order) => ({
       name: order.name || `Product ${order.product_id}`,
       description: order.description || `Product ${order.product_id}`,
@@ -39,7 +38,6 @@ export const createPayment = async (req, res) => {
     console.log(formatedCartItems, "formatedCartItems");
     // Create order data for Stripe
     const orderData = {
-      
       id: `order_${userEmail}_${userId}`,
       amount: totalAmount,
       customerEmail: userEmail,
@@ -47,7 +45,7 @@ export const createPayment = async (req, res) => {
       items: stripeItems,
       address: address,
     };
- console.log(cartid, "cartid");
+    console.log(cartid, "cartid");
     // Create checkout session
     const result = await stripeService.createCheckoutSession(
       orderData,
@@ -91,7 +89,7 @@ export const webhook = async (req, res) => {
     const rawBody = req.body;
     console.log("📦 Raw body type:", typeof rawBody);
     console.log("📦 Raw body is Buffer:", Buffer.isBuffer(rawBody));
-    console.log("📦 Raw body length:", rawBody ? rawBody.length : "undefined");
+       
 
     let event;
     try {
@@ -111,10 +109,10 @@ export const webhook = async (req, res) => {
 
         console.log(session, "session");
 
-        let parsedItems, parsedAddress;
-        
+        let parsedAddress;
+
         try {
-          parsedItems = JSON.parse(session.metadata.itemsJson);
+          // parsedItems = JSON.parse(session.metadata.itemsJson);
           parsedAddress = JSON.parse(session.metadata.address);
         } catch (parseError) {
           console.error("❌ Error parsing metadata:", parseError);
@@ -122,16 +120,13 @@ export const webhook = async (req, res) => {
           console.error("📄 Raw address:", session.metadata.address);
           return res.status(400).json({ error: "Failed to parse metadata" });
         }
-        
-        console.log("📦 Parsed Items:", parsedItems);
-        console.log("📦 Parsed Address:", parsedAddress);
-        
+
+
+
         const result = await orderService.createOrderWithPayment(
           session.metadata.userId,
-      
+          session.metadata.cartid,
           parsedAddress,
-          parsedItems,
-          session.amount_total / 100,
           "processing",
           session.id
         );
@@ -140,24 +135,8 @@ export const webhook = async (req, res) => {
           console.log("ℹ️ Order already existed:", result.message);
         } else {
           console.log("✅ New order created successfully:", result.order.id);
-          
-          // Clear cart items after successful order creation
-          // This ensures the cart is emptied after payment success
-          if (session.metadata.cartid) {
-            try {
-              console.log("🛒 Clearing cart items for cart ID:", session.metadata.cartid);
-              const cartResult = await orderService.clearCartItems(session.metadata.cartid);
-              console.log("✅ Cart items cleared successfully:", cartResult.deletedCount, "items deleted");
-              
-              // Note: Frontend should also clear localStorage for these items
-              // The deletedItems array contains the items that were removed
-            } catch (cartError) {
-              console.error("❌ Error clearing cart items:", cartError);
-              // Don't fail the webhook if cart clearing fails
-            }
-          } else {
-            console.log("⚠️ No cart ID found in metadata, skipping cart clearing");
-          }
+          console.log("📦 Order items created:", result.orderItems?.length || 0, "items");
+          console.log("🛒 Cart cleared:", result.cartCleared?.deletedCount || 0, "items deleted");
         }
       } else if (event.type === "payment_intent.succeeded") {
         const paymentIntent = event.data.object;
