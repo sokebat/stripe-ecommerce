@@ -212,7 +212,6 @@ class OrderService {
           delivery_option: cartItem.delivery_option || "pay_on_website",
           status: "pending",
           created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
         };
       });
 
