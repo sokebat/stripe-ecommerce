@@ -26,7 +26,7 @@ class EmailService {
 
       const result = await this.resend.emails.send({
         from: "onboarding@resend.dev",
-        to: "admin@yourstore.com", // Send to admin email
+        to: "botoverloadoffice@gmail.com", // Send to admin email
         subject: `New Order Created #${order.id.slice(0, 8)}`,
         html: emailHtml,
       });
