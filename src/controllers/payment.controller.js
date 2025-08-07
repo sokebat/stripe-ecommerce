@@ -1,6 +1,5 @@
 import stripeService from "../services/stripe.service.js";
 import orderService from "../services/order.service.js";
-import emailService from "../services/email.service.js";
 import { createAuthenticatedClient } from "../config/supabase.js";
 
 export const createPayment = async (req, res) => {
@@ -169,19 +168,4 @@ export const verifyPayment = async (req, res) => {
   }
 };
 
-/**
- * Test email service
- */
-export const testEmail = async (req, res) => {
-  try {
-    const result = await emailService.sendTestEmail();
-    res.json({
-      success: true,
-      message: "Test email sent successfully",
-      messageId: result.messageId,
-    });
-  } catch (error) {
-    console.error("Error sending test email:", error);
-    res.status(500).json({ error: "Failed to send test email" });
-  }
-};
+

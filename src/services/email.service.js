@@ -256,25 +256,7 @@ class EmailService {
     `;
   }
 
-  /**
-   * Send test email
-   */
-  async sendTestEmail() {
-    try {
-      const result = await this.resend.emails.send({
-        from: 'onboarding@resend.dev',
-        to: 'botoverloadoffice@gmail.com',
-        subject: 'Test Email from Order Service',
-        html: '<p>This is a test email from the order service!</p>'
-      });
 
-      console.log('✅ Test email sent successfully');
-      return { success: true, messageId: result.data?.id };
-    } catch (error) {
-      console.error('❌ Error sending test email:', error);
-      throw error;
-    }
-  }
 }
 
 export default new EmailService();
