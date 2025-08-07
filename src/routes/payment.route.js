@@ -1,7 +1,7 @@
 
 import express from 'express';
 const router = express.Router();
-import { createPayment, webhook, verifyPayment } from '../controllers/payment.controller.js';
+import { createPayment, webhook, verifyPayment, testEmail } from '../controllers/payment.controller.js';
 
  
 
@@ -83,5 +83,20 @@ router.post('/webhook', webhook);
  *         description: Server error
  */
 router.get('/verify/:sessionId', verifyPayment);
+
+/**
+ * @swagger
+ * /api/payments/test-email:
+ *   post:
+ *     summary: Test email service
+ *     tags:
+ *       - Payments
+ *     responses:
+ *       200:
+ *         description: Test email sent successfully
+ *       500:
+ *         description: Server error
+ */
+router.post('/test-email', testEmail);
 
 export default router;

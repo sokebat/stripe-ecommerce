@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import emailService from "./email.service.js";
 
 /**
  * OrderService - Handles order creation with robust idempotency
@@ -169,6 +170,7 @@ class OrderService {
           product_id: cartItem.product_id,
           quantity: cartItem.quantity,
           price: productPrice,
+          product_name: cartItem.products?.name || "Product",
           selected_color: cartItem.selected_color || null,
           selected_size: cartItem.selected_size || null,
           delivery_option: cartItem.delivery_option || "pay_on_website",
@@ -186,7 +188,44 @@ class OrderService {
         throw new Error("Failed to create order items in database");
       }
 
+      // Clear cart items after successful order creation
       const cartResult = await this.clearCartItems(cartid);
+
+      // All database operations completed successfully
+      console.log("✅ Order creation completed successfully!");
+      console.log(`📦 Order ID: ${order.id}`);
+      console.log(`📦 Order Items: ${orderItemsData.length} items created`);
+      console.log(`🛒 Cart cleared: ${cartResult.deletedCount} items deleted`);
+
+      // Send order confirmation email ONLY after all operations are successful
+      try {
+        console.log("📧 Sending order confirmation email...");
+        
+        // Get user details for email
+        const { data: userData, error: userError } = await this.supabase
+          .from("users")
+          .select("email, name")
+          .eq("id", userId)
+          .single();
+
+        if (!userError && userData && userData.email) {
+          await emailService.sendOrderConfirmationEmail(
+            { order, orderItems: orderItemsData },
+            userData.email,
+            userData.name || "Customer"
+          );
+          console.log("✅ Order confirmation email sent successfully to:", userData.email);
+        } else {
+          console.log("⚠️ Could not send email - user data not found or email missing");
+          if (userError) {
+            console.log("User error:", userError.message);
+          }
+        }
+      } catch (emailError) {
+        console.error("❌ Error sending order confirmation email:", emailError);
+        // Don't fail the order creation if email fails
+        console.log("⚠️ Order creation successful but email failed - order still created");
+      }
 
       return {
         success: true,
@@ -194,6 +233,7 @@ class OrderService {
         orderItems: orderItemsData,
         isExisting: false,
         cartCleared: cartResult,
+        emailSent: true, // Indicate email was attempted
       };
     } catch (error) {
       console.log(error);
