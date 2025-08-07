@@ -1,4 +1,4 @@
-import { Resend } from 'resend';
+import { Resend } from "resend";
 import { createClient } from "@supabase/supabase-js";
 
 class EmailService {
@@ -16,24 +16,32 @@ class EmailService {
   async sendOrderConfirmationEmail(orderData, userEmail, userName) {
     try {
       const { order, orderItems } = orderData;
-      
+
       // Get product names for order items
-      const orderItemsWithProducts = await this.getOrderItemsWithProducts(orderItems);
-      
-      const emailHtml = this.generateOrderConfirmationTemplate(order, orderItemsWithProducts, userName);
-      
+      const orderItemsWithProducts = await this.getOrderItemsWithProducts(
+        orderItems
+      );
+
+      const emailHtml = this.generateOrderConfirmationTemplate(
+        order,
+        orderItemsWithProducts,
+        userName
+      );
+
       const result = await this.resend.emails.send({
-        from: 'orders@yourstore.com',
+        from: "onboarding@resend.dev",
         to: userEmail,
         subject: `Order Confirmation #${order.id.slice(0, 8)}`,
         html: emailHtml,
       });
 
-      console.log('✅ Order confirmation email sent successfully');
+      console.log("✅ Order confirmation email sent successfully");
       return { success: true, messageId: result.data?.id };
     } catch (error) {
-      console.error('❌ Error sending order confirmation email:', error);
-      throw error;
+      console.error("❌ Error sending order confirmation email:", error);
+      // Don't throw error, just log it so order creation doesn't fail
+      console.log("⚠️ Email sending failed but order was created successfully");
+      return { success: false, error: error.message };
     }
   }
 
@@ -43,32 +51,34 @@ class EmailService {
   async getOrderItemsWithProducts(orderItems) {
     try {
       // Get unique product IDs
-      const productIds = [...new Set(orderItems.map(item => item.product_id))];
-      
+      const productIds = [
+        ...new Set(orderItems.map((item) => item.product_id)),
+      ];
+
       // Fetch product details
       const { data: products, error } = await this.supabase
-        .from('products')
-        .select('id, name')
-        .in('id', productIds);
+        .from("products")
+        .select("id, name")
+        .in("id", productIds);
 
       if (error) {
-        console.error('❌ Error fetching products for email:', error);
+        console.error("❌ Error fetching products for email:", error);
         return orderItems; // Return original items if product fetch fails
       }
 
       // Create a map of product ID to product name
       const productMap = {};
-      products.forEach(product => {
+      products.forEach((product) => {
         productMap[product.id] = product.name;
       });
 
       // Add product names to order items
-      return orderItems.map(item => ({
+      return orderItems.map((item) => ({
         ...item,
-        product_name: productMap[item.product_id] || 'Product'
+        product_name: productMap[item.product_id] || "Product",
       }));
     } catch (error) {
-      console.error('❌ Error in getOrderItemsWithProducts:', error);
+      console.error("❌ Error in getOrderItemsWithProducts:", error);
       return orderItems; // Return original items if anything fails
     }
   }
@@ -78,13 +88,15 @@ class EmailService {
    */
   generateOrderConfirmationTemplate(order, orderItems, userName) {
     const orderNumber = order.id.slice(0, 8).toUpperCase();
-    const orderDate = new Date(order.created_at).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
+    const orderDate = new Date(order.created_at).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
     });
-    
-    const itemsHtml = orderItems.map(item => `
+
+    const itemsHtml = orderItems
+      .map(
+        (item) => `
       <tr style="border-bottom: 1px solid #e5e7eb;">
         <td style="padding: 16px 0;">
           <div style="display: flex; align-items: center;">
@@ -92,20 +104,26 @@ class EmailService {
               <span style="font-size: 24px;">👕</span>
             </div>
             <div style="flex: 1;">
-              <h3 style="margin: 0 0 4px 0; font-size: 16px; font-weight: 600; color: #111827;">${item.product_name || 'Product'}</h3>
+              <h3 style="margin: 0 0 4px 0; font-size: 16px; font-weight: 600; color: #111827;">${
+                item.product_name || "Product"
+              }</h3>
               <p style="margin: 0; font-size: 14px; color: #6b7280;">
                 Qty: ${item.quantity} | 
-                ${item.selected_color ? `Color: ${item.selected_color}` : ''} 
-                ${item.selected_size ? `| Size: ${item.selected_size}` : ''}
+                ${item.selected_color ? `Color: ${item.selected_color}` : ""} 
+                ${item.selected_size ? `| Size: ${item.selected_size}` : ""}
               </p>
             </div>
             <div style="text-align: right;">
-              <p style="margin: 0; font-size: 16px; font-weight: 600; color: #111827;">₹${item.price}</p>
+              <p style="margin: 0; font-size: 16px; font-weight: 600; color: #111827;">₹${
+                item.price
+              }</p>
             </div>
           </div>
         </td>
       </tr>
-    `).join('');
+    `
+      )
+      .join("");
 
     return `
       <!DOCTYPE html>
@@ -200,18 +218,24 @@ class EmailService {
               <div class="total-section">
                 <div style="display: flex; justify-content: space-between; align-items: center;">
                   <span style="font-size: 18px; font-weight: 700; color: #111827;">Total</span>
-                  <span style="font-size: 18px; font-weight: 700; color: #111827;">₹${order.total_amount}</span>
+                  <span style="font-size: 18px; font-weight: 700; color: #111827;">₹${
+                    order.total_amount
+                  }</span>
                 </div>
               </div>
             </div>
 
             <!-- Shipping Address -->
-            ${order.shipping_address ? `
+            ${
+              order.shipping_address
+                ? `
             <div style="background: #f8fafc; border-radius: 12px; padding: 24px; margin-bottom: 24px;">
               <h2 style="margin: 0 0 16px 0; font-size: 20px; color: #111827;">Shipping Address</h2>
               <p style="margin: 0; color: #374151; line-height: 1.6;">${order.shipping_address}</p>
             </div>
-            ` : ''}
+            `
+                : ""
+            }
 
             <!-- Next Steps -->
             <div style="background: #eff6ff; border: 1px solid #dbeafe; border-radius: 12px; padding: 24px; margin-bottom: 24px;">
@@ -256,7 +280,64 @@ class EmailService {
     `;
   }
 
+  /**
+   * Generate simple order confirmation email (fallback)
+   */
+  generateSimpleOrderTemplate(order, orderItems) {
+    const orderNumber = order.id.slice(0, 8).toUpperCase();
+    const orderDate = new Date(order.created_at).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
 
+    const itemsList = orderItems
+      .map(
+        (item) =>
+          `- ${item.product_name || "Product"} (Qty: ${item.quantity}) - ₹${
+            item.price
+          }`
+      )
+      .join("\n");
+
+    return `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <style>
+          body { font-family: Arial, sans-serif; margin: 20px; }
+          .header { background: #4CAF50; color: white; padding: 20px; text-align: center; }
+          .content { padding: 20px; }
+          .order-info { background: #f9f9f9; padding: 15px; margin: 15px 0; border-radius: 5px; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <h1>🎉 Order Confirmed!</h1>
+          <p>Order #${orderNumber} has been successfully created</p>
+        </div>
+        
+        <div class="content">
+          <div class="order-info">
+            <h2>Order Details:</h2>
+            <p><strong>Order ID:</strong> ${order.id}</p>
+            <p><strong>Order Number:</strong> #${orderNumber}</p>
+            <p><strong>Date:</strong> ${orderDate}</p>
+            <p><strong>Total Amount:</strong> ₹${order.total_amount}</p>
+            <p><strong>Items:</strong> ${orderItems.length} items</p>
+          </div>
+          
+          <div class="order-info">
+            <h3>Order Items:</h3>
+            <pre style="white-space: pre-wrap;">${itemsList}</pre>
+          </div>
+          
+          <p>Thank you for your order! We'll process it soon.</p>
+        </div>
+      </body>
+      </html>
+    `;
+  }
 }
 
 export default new EmailService();

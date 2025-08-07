@@ -1,6 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import emailService from "./email.service.js";
- 
+
 class OrderService {
   constructor() {
     // Use admin access with secret key for webhook operations
@@ -180,16 +180,12 @@ class OrderService {
       // Clear cart items after successful order creation
       const cartResult = await this.clearCartItems(cartid);
 
-      // All database operations completed successfully
-      console.log("✅ Order creation completed successfully!");
-      console.log(`📦 Order ID: ${order.id}`);
-      console.log(`📦 Order Items: ${orderItemsData.length} items created`);
-      console.log(`🛒 Cart cleared: ${cartResult.deletedCount} items deleted`);
+      
 
       // Send order confirmation email ONLY after all operations are successful
       try {
         console.log("📧 Sending order confirmation email...");
-        
+
         // Get user details for email
         const { data: userData, error: userError } = await this.supabase
           .from("users")
@@ -197,23 +193,34 @@ class OrderService {
           .eq("id", userId)
           .single();
 
-        if (!userError && userData && userData.email) {
+        if (!userError  ) {
           await emailService.sendOrderConfirmationEmail(
             { order, orderItems: orderItemsData },
             userData.email,
             userData.name || "Customer"
           );
-          console.log("✅ Order confirmation email sent successfully to:", userData.email);
+          console.log(
+            "✅ Order confirmation email sent successfully to:",
+            userData.email
+          );
         } else {
-          console.log("⚠️ Could not send email - user data not found or email missing");
-          if (userError) {
-            console.log("User error:", userError.message);
-          }
+          // Just log the order creation - no email sent
+          console.log("✅ Order created successfully! Order ID:", order.id);
+          console.log(
+            "📦 Order items created:",
+            orderItemsData.length,
+            "items"
+          );
+          console.log("🛒 Cart cleared successfully");
+          console.log("📧 Email not sent - user email not found");
         }
       } catch (emailError) {
         console.error("❌ Error sending order confirmation email:", emailError);
         // Don't fail the order creation if email fails
-        console.log("⚠️ Order creation successful but email failed - order still created");
+        console.log(
+          "⚠️ Order creation successful but email failed - order still created"
+        );
+        console.log("✅ Order ID:", order.id, "created successfully!");
       }
 
       return {
