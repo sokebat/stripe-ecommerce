@@ -59,7 +59,7 @@ class StripeService {
         sessionUrl: session.url,
       };
     } catch (error) {
-      console.error("Error creating Stripe checkout session:", error);
+      console.log(error);
       throw error;
     }
   }
@@ -69,7 +69,7 @@ class StripeService {
       const session = await this.stripe.checkout.sessions.retrieve(sessionId);
       return session;
     } catch (error) {
-      console.error("Error retrieving Stripe session:", error);
+      console.log(error);
       throw error;
     }
   }
@@ -78,11 +78,8 @@ class StripeService {
     try {
       const { type, data } = event;
 
-      console.log(`\n=== PROCESSING STRIPE EVENT: ${type} ===`);
-
       switch (type) {
         case "checkout.session.completed": {
-          console.log("\n=== CHECKOUT SESSION COMPLETED ===");
           const session = data.object;
 
           let parsedAddress;
@@ -90,22 +87,13 @@ class StripeService {
           try {
             parsedAddress = JSON.parse(session.metadata.address);
           } catch (parseError) {
-            console.error("❌ Error parsing metadata:", parseError);
-            // console.error("📄 Raw itemsJson:", session.metadata.itemsJson);
-            console.error("📄 Raw address:", session.metadata.address);
             throw new Error("Failed to parse metadata");
           }
-          console.log("📦 Parsed Address:", parsedAddress);
-
-          // Order creation is handled in the controller, not here
-          console.log("✅ Webhook event processed successfully");
 
           return { status: "success", eventType: type, sessionId: session.id };
         }
 
         case "checkout.session.async_payment_succeeded": {
-          console.log("\n=== PAYMENT INTENT SUCCEEDED ===");
-
           return {
             status: "success",
             eventType: type,
@@ -114,8 +102,6 @@ class StripeService {
         }
 
         case "checkout.session.async_payment_failed": {
-          console.log("\n=== PAYMENT INTENT FAILED ===");
-
           return {
             status: "failed",
             eventType: type,
@@ -124,25 +110,19 @@ class StripeService {
         }
 
         default:
-          console.log(`Unhandled Stripe webhook event type: ${type}`);
           return { status: "ignored", eventType: type };
       }
     } catch (error) {
-      console.error("Error handling Stripe webhook:", error);
+      console.log(error);
       throw error;
     }
   }
 
   verifyWebhookSignature(signature, rawBody) {
-    console.log(signature, "signature from stripe");
-    console.log(rawBody, "rawBody from stripe");
     try {
-      console.log("Verifying order webhook signature with secret...");
-
       const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
       if (!webhookSecret) {
-        console.error("STRIPE_WEBHOOK_SECRET environment variable is not set");
         throw new Error("Webhook secret is not configured");
       }
 
@@ -152,10 +132,9 @@ class StripeService {
         webhookSecret
       );
 
-      console.log("Webhook signature verified successfully");
       return event;
     } catch (error) {
-      console.error("Stripe webhook signature verification failed:", error);
+      console.log(error);
       throw error;
     }
   }

@@ -35,7 +35,6 @@ export const createPayment = async (req, res) => {
       (sum, item) => sum + item.total,
       0
     );
-    console.log(formatedCartItems, "formatedCartItems");
     // Create order data for Stripe
     const orderData = {
       id: `order_${userEmail}_${userId}`,
@@ -45,7 +44,6 @@ export const createPayment = async (req, res) => {
       items: stripeItems,
       address: address,
     };
-    console.log(cartid, "cartid");
     // Create checkout session
     const result = await stripeService.createCheckoutSession(
       orderData,
@@ -64,7 +62,6 @@ export const createPayment = async (req, res) => {
       orders: formatedCartItems,
     });
   } catch (error) {
-    console.error("Payment creation error:", error);
     res.status(500).json({
       error: "Failed to create payment session",
       details: error.message,
@@ -74,22 +71,12 @@ export const createPayment = async (req, res) => {
 
 export const webhook = async (req, res) => {
   try {
-    console.log("🎯 WEBHOOK RECEIVED");
-    console.log("📋 Headers:", Object.keys(req.headers));
-
     const signature = req.headers["stripe-signature"];
     if (!signature) {
-      console.error("❌ Stripe signature missing from headers");
       return res.status(400).json({ error: "Stripe signature missing" });
     }
 
-    console.log("✅ Signature found:", signature.substring(0, 50) + "...");
-
-    // Get raw body - should be a Buffer from express.raw()
     const rawBody = req.body;
-    console.log("📦 Raw body type:", typeof rawBody);
-    console.log("📦 Raw body is Buffer:", Buffer.isBuffer(rawBody));
-       
 
     let event;
     try {
@@ -105,9 +92,6 @@ export const webhook = async (req, res) => {
 
       if (event.type === "checkout.session.completed") {
         const session = event.data.object;
-        console.log("🎉 CHECKOUT SESSION COMPLETED");
-
-        console.log(session, "session");
 
         let parsedAddress;
 
@@ -115,13 +99,8 @@ export const webhook = async (req, res) => {
           // parsedItems = JSON.parse(session.metadata.itemsJson);
           parsedAddress = JSON.parse(session.metadata.address);
         } catch (parseError) {
-          console.error("❌ Error parsing metadata:", parseError);
-          console.error("📄 Raw itemsJson:", session.metadata.itemsJson);
-          console.error("📄 Raw address:", session.metadata.address);
           return res.status(400).json({ error: "Failed to parse metadata" });
         }
-
-
 
         const result = await orderService.createOrderWithPayment(
           session.metadata.userId,
@@ -130,39 +109,23 @@ export const webhook = async (req, res) => {
           "processing",
           session.id
         );
-
-        if (result.isExisting) {
-          console.log("ℹ️ Order already existed:", result.message);
-        } else {
-          console.log("✅ New order created successfully:", result.order.id);
-          console.log("📦 Order items created:", result.orderItems?.length || 0, "items");
-          console.log("🛒 Cart cleared:", result.cartCleared?.deletedCount || 0, "items deleted");
-        }
       } else if (event.type === "payment_intent.succeeded") {
         const paymentIntent = event.data.object;
-        console.log("✅ PAYMENT INTENT SUCCEEDED");
       } else if (event.type === "payment_intent.payment_failed") {
         const paymentIntent = event.data.object;
-        console.log("❌ PAYMENT INTENT FAILED");
       } else {
-        console.log(`ℹ️ Unhandled event type: ${event.type}`);
       }
 
       res.status(200).json({ received: true, success: true });
     } catch (parseErr) {
-      console.error("❌ Failed to parse event body:", parseErr);
       return res.status(400).json({ error: "Failed to parse webhook body" });
     }
 
     // Process the event asynchronously (after response is sent)
     try {
-      console.log("🔄 Processing event asynchronously...");
       const result = await stripeService.handleWebhookEvent(event);
-    } catch (processingErr) {
-      console.error("❌ Error in async webhook processing:", processingErr);
-    }
+    } catch (processingErr) {}
   } catch (error) {
-    console.error("❌ Error handling webhook:", error);
     if (!res.headersSent) {
       res.status(500).json({ error: "Failed to process webhook" });
     }
@@ -201,7 +164,6 @@ export const verifyPayment = async (req, res) => {
       clientReferenceId: session.client_reference_id,
     });
   } catch (error) {
-    console.error("Error verifying payment:", error);
     res.status(500).json({ error: "Failed to verify payment" });
   }
 };
