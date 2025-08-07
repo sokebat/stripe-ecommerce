@@ -185,41 +185,16 @@ class OrderService {
       // Send order confirmation email ONLY after all operations are successful
       try {
         console.log("📧 Sending order confirmation email...");
-
-        // Get user details for email
-        const { data: userData, error: userError } = await this.supabase
-          .from("users")
-          .select("email, name")
-          .eq("id", userId)
-          .single();
-
-        if (!userError  ) {
-          await emailService.sendOrderConfirmationEmail(
-            { order, orderItems: orderItemsData },
-            userData.email,
-            userData.name || "Customer"
-          );
-          console.log(
-            "✅ Order confirmation email sent successfully to:",
-            userData.email
-          );
-        } else {
-          // Just log the order creation - no email sent
-          console.log("✅ Order created successfully! Order ID:", order.id);
-          console.log(
-            "📦 Order items created:",
-            orderItemsData.length,
-            "items"
-          );
-          console.log("🛒 Cart cleared successfully");
-          console.log("📧 Email not sent - user email not found");
-        }
+        
+        // Send simple order confirmation email
+        await emailService.sendSimpleOrderEmail(
+          { order, orderItems: orderItemsData }
+        );
+        console.log("✅ Order confirmation email sent successfully!");
       } catch (emailError) {
         console.error("❌ Error sending order confirmation email:", emailError);
         // Don't fail the order creation if email fails
-        console.log(
-          "⚠️ Order creation successful but email failed - order still created"
-        );
+        console.log("⚠️ Order creation successful but email failed - order still created");
         console.log("✅ Order ID:", order.id, "created successfully!");
       }
 

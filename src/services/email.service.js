@@ -11,6 +11,37 @@ class EmailService {
   }
 
   /**
+   * Send simple order confirmation email
+   */
+  async sendSimpleOrderEmail(orderData) {
+    try {
+      const { order, orderItems } = orderData;
+
+      // Get product names for order items
+      const orderItemsWithProducts = await this.getOrderItemsWithProducts(
+        orderItems
+      );
+
+      const emailHtml = this.generateSimpleOrderTemplate(order, orderItemsWithProducts);
+
+      const result = await this.resend.emails.send({
+        from: "onboarding@resend.dev",
+        to: "admin@yourstore.com", // Send to admin email
+        subject: `New Order Created #${order.id.slice(0, 8)}`,
+        html: emailHtml,
+      });
+
+      console.log("✅ Simple order confirmation email sent successfully");
+      return { success: true, messageId: result.data?.id };
+    } catch (error) {
+      console.error("❌ Error sending simple order email:", error);
+      // Don't throw error, just log it so order creation doesn't fail
+      console.log("⚠️ Email sending failed but order was created successfully");
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
    * Send order confirmation email
    */
   async sendOrderConfirmationEmail(orderData, userEmail, userName) {
