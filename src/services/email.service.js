@@ -1,8 +1,13 @@
 import { Resend } from 'resend';
+import { createClient } from "@supabase/supabase-js";
 
 class EmailService {
   constructor() {
-    this.resend = new Resend(process.env.RESEND_API_KEY );
+    this.resend = new Resend(process.env.RESEND_API_KEY);
+    this.supabase = createClient(
+      process.env.SUPABASE_URL,
+      process.env.SUPABASE_SECRET_KEY
+    );
   }
 
   /**
@@ -12,7 +17,10 @@ class EmailService {
     try {
       const { order, orderItems } = orderData;
       
-      const emailHtml = this.generateOrderConfirmationTemplate(order, orderItems, userName);
+      // Get product names for order items
+      const orderItemsWithProducts = await this.getOrderItemsWithProducts(orderItems);
+      
+      const emailHtml = this.generateOrderConfirmationTemplate(order, orderItemsWithProducts, userName);
       
       const result = await this.resend.emails.send({
         from: 'orders@yourstore.com',
@@ -26,6 +34,42 @@ class EmailService {
     } catch (error) {
       console.error('❌ Error sending order confirmation email:', error);
       throw error;
+    }
+  }
+
+  /**
+   * Get order items with product details
+   */
+  async getOrderItemsWithProducts(orderItems) {
+    try {
+      // Get unique product IDs
+      const productIds = [...new Set(orderItems.map(item => item.product_id))];
+      
+      // Fetch product details
+      const { data: products, error } = await this.supabase
+        .from('products')
+        .select('id, name')
+        .in('id', productIds);
+
+      if (error) {
+        console.error('❌ Error fetching products for email:', error);
+        return orderItems; // Return original items if product fetch fails
+      }
+
+      // Create a map of product ID to product name
+      const productMap = {};
+      products.forEach(product => {
+        productMap[product.id] = product.name;
+      });
+
+      // Add product names to order items
+      return orderItems.map(item => ({
+        ...item,
+        product_name: productMap[item.product_id] || 'Product'
+      }));
+    } catch (error) {
+      console.error('❌ Error in getOrderItemsWithProducts:', error);
+      return orderItems; // Return original items if anything fails
     }
   }
 

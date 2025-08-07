@@ -1,16 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import emailService from "./email.service.js";
-
-/**
- * OrderService - Handles order creation with robust idempotency
- *
- * Features:
- * - Prevents duplicate orders from webhook retries
- * - Handles PostgreSQL unique constraint violations
- * - Graceful error handling for all scenarios
- * - Detailed logging for debugging
- * - Uses admin access for webhook operations
- */
+ 
 class OrderService {
   constructor() {
     // Use admin access with secret key for webhook operations
@@ -170,7 +160,6 @@ class OrderService {
           product_id: cartItem.product_id,
           quantity: cartItem.quantity,
           price: productPrice,
-          product_name: cartItem.products?.name || "Product",
           selected_color: cartItem.selected_color || null,
           selected_size: cartItem.selected_size || null,
           delivery_option: cartItem.delivery_option || "pay_on_website",
