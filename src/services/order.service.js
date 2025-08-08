@@ -177,6 +177,17 @@ class OrderService {
         throw new Error("Failed to create order items in database");
       }
 
+      // Update inventory (track sold items) after successful order creation
+      try {
+        console.log("📦 Updating inventory for sold items...");
+        await this.updateInventory(orderItemsData);
+        console.log("✅ Inventory updated successfully!");
+      } catch (inventoryError) {
+        console.error("❌ Error updating inventory:", inventoryError);
+        // Don't fail the order creation if inventory update fails
+        console.log("⚠️ Order creation successful but inventory update failed - order still created");
+      }
+
       // Clear cart items after successful order creation
       const cartResult = await this.clearCartItems(cartid);
 
@@ -287,6 +298,52 @@ class OrderService {
         cartId: cartId,
       };
     } catch (error) {
+      throw error;
+    }
+  }
+
+  async updateInventory(orderItems) {
+    try {
+      if (!orderItems || orderItems.length === 0) {
+        console.log("⚠️ No order items to update inventory for");
+        return;
+      }
+
+      // Get current inventory for all products in the order
+      const { data: inventory, error: fetchError } = await this.supabase
+        .from("products")
+        .select("id, sold_items")
+        .in("id", orderItems.map((item) => item.product_id));
+
+      if (fetchError) {
+        throw new Error("Failed to fetch inventory");
+      }
+
+      if (!inventory || inventory.length === 0) {
+        throw new Error("No inventory found for products");
+      }
+
+      // Update sold_items for each product
+      for (const orderItem of orderItems) {
+        const product = inventory.find((item) => item.id === orderItem.product_id);
+        if (product) {
+          const newSoldItems = (product.sold_items || 0) + orderItem.quantity;
+          
+          const { error: updateError } = await this.supabase
+            .from("products")
+            .update({ sold_items: newSoldItems })
+            .eq("id", product.id);
+
+          if (updateError) {
+            console.error(`❌ Failed to update inventory for product ${product.id}:`, updateError);
+            throw new Error(`Failed to update inventory for product ${product.id}`);
+          }
+        }
+      }
+
+      console.log(`✅ Updated inventory for ${orderItems.length} products`);
+    } catch (error) {
+      console.error("❌ Error in updateInventory:", error);
       throw error;
     }
   }
